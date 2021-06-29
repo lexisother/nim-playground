@@ -12,3 +12,4 @@ bin           = @["brainfuck"]
 # Dependencies
 
 requires "nim >= 1.0.6"
+requires "docopt >= 0.1.0"
