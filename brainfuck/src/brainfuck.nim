@@ -12,6 +12,42 @@ proc xdec(c: var char) = dec c
 
 import macros
 
+
+proc interpret*(code: string) =
+  ## Interprets the Brainfuck `code` string, reading from stdin and writing to stdout.
+  var
+    tape = newSeq[char]()
+    codePos = 0
+    tapePos = 0
+
+  proc run(skip = false): bool =
+    while tapePos >= 0 and codePos < code.len:
+      if tapePos >= tape.len:
+        tape.add '\0'
+
+      if code[codePos] ==  '[':
+        inc codePos
+        let oldPos = codePos
+        while run(tape[tapePos] == '\0'):
+          codePos = oldPos
+
+      elif code[codePos] == ']':
+        return tape[tapePos] != '\0'
+
+      elif not skip:
+        case code[codePos]
+        of '+': xinc tape[tapePos]
+        of '-': xdec tape[tapePos]
+        of '>': inc tapePos
+        of '<': dec tapePos
+        of '.': stdout.write tape[tapePos]
+        of ',': tape[tapePos] = stdin.readChar
+        else: discard
+
+      inc codePos
+
+  discard run()
+
 proc compile(code: string): NimNode {.compiletime.} =
   var stmts = @[newStmtList()]
 
@@ -38,7 +74,6 @@ proc compile(code: string): NimNode {.compiletime.} =
     else: discard
 
   result = stmts[0]
-  # echo result.repr
 
 
 macro compileString*(code: string) =
@@ -51,6 +86,31 @@ macro compileFile*(filename: string) =
   ## code that reads from stdin and writes to stdout.
   compile staticRead(filename.strVal)
 
-proc mandelbrot = compileFile("../examples/mandelbrot.b")
+when isMainModule:
+  import docopt, tables
+  proc mandelbrot = compileFile("../examples/mandelbrot.b")
 
-mandelbrot()
+  let doc = """
+brainfuck
+
+Usage:
+  brainfuck mandelbrot
+  brainfuck interpret [<file.b>]
+  brainfuck (-h | --help)
+  brainfuck (-v | --version)
+
+Options:
+  -h --help     Show this screen.
+  -v --version  Show version.
+  """
+
+  let args = docopt(doc, version = "brainfuck 1.0")
+
+  if args["mandelbrot"]:
+    mandelbrot()
+
+  elif args["interpret"]:
+    let code = if args["<file.b>"]: readFile($args["<file.b>"])
+              else: readAll stdin
+
+    interpret(code)
