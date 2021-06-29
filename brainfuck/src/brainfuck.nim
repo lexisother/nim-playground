@@ -10,47 +10,47 @@ proc xinc(c: var char) = inc c
 proc xdec(c: var char) = dec c
 {.pop.}
 
-proc interpret*(code: string) =
-  ## Interprets the Brainfuck `code` string, reading from stdin and writing to stdout.
-  var
-    tape = newSeq[char]()
-    codePos = 0
-    tapePos = 0
+import macros
 
-  proc run(skip = false): bool =
-    while tapePos >= 0 and codePos < code.len:
-      if tapePos >= tape.len:
-        tape.add '\0'
+proc compile(code: string): NimNode {.compiletime.} =
+  var stmts = @[newStmtList()]
 
-      if code[codePos] ==  '[':
-        inc codePos
-        let oldPos = codePos
-        while run(tape[tapePos] == '\0'):
-          codePos = oldPos
+  template addStmt(text) =
+    stmts[stmts.high].add parseStmt(text)
 
-      elif code[codePos] == ']':
-        return tape[tapePos] != '\0'
+  addStmt "var tape: array[1_000_000, char]"
+  addStmt "var tapePos = 0"
 
-      elif not skip:
-        case code[codePos]
-        of '+': xinc tape[tapePos]
-        of '-': xdec tape[tapePos]
-        of '>': inc tapePos
-        of '<': dec tapePos
-        of '.': stdout.write tape[tapePos]
-        of ',': tape[tapePos] = stdin.readChar
-        else: discard
+  for c in code:
+    case c
+    of '+': addStmt "xinc tape[tapePos]"
+    of '-': addStmt "xdec tape[tapePos]"
+    of '>': addStmt "inc tapePos"
+    of '<': addStmt "dec tapePos"
+    of '.': addStmt "stdout.write tape[tapePos]"
+    of ',': addStmt "tape[tapePos] = stdin.readChar"
+    of '[': stmts.add newStmtList()
+    of ']':
+      var loop = newNimNode(nnkWhileStmt)
+      loop.add parseExpr("tape[tapePos] != '\\0'")
+      loop.add stmts.pop
+      stmts[stmts.high].add loop
+    else: discard
 
-      inc codePos
+  result = stmts[0]
+  # echo result.repr
 
-  discard run()
 
-when isMainModule:
-  import os
+macro compileString*(code: string) =
+  ## Compiles the brainfuck `code` string into Nim code that reads from stdin
+  ## and writes to stdout.
+  compile code.strVal
 
-  echo "Welcome to Brainfuck"
+macro compileFile*(filename: string) =
+  ## Compiles the brainfuck code read from `filename` at compile time into Nim
+  ## code that reads from stdin and writes to stdout.
+  compile staticRead(filename.strVal)
 
-  let code = if paramCount() > 0: readFile paramStr(1)
-  else: readAll stdin
+proc mandelbrot = compileFile("../examples/mandelbrot.b")
 
-  interpret code
+mandelbrot()
