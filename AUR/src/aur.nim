@@ -30,4 +30,28 @@ proc searchPkg*(query: string): void =
             return
     
 
-searchPkg("github")
+when isMainModule:
+    import docopt
+    
+    let doc = """
+AURWeb Client
+
+Usage:
+    aur search [<query>]
+    aur (-h | --help)
+    aur (-v | --version)
+
+Options:
+    -h --help:      Show this screen.
+    -v --version:   Show program version.
+    """
+
+    let args = docopt(doc, version = "aur 0.1.0")
+
+    if args["search"]:
+        let query = $args["<query>"]
+
+        if query == "nil":
+            echo "No query."
+        else:
+            searchPkg(query)
