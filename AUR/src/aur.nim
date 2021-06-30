@@ -1,4 +1,4 @@
-import httpclient, json, strutils
+import httpclient, json, strformat
 
 var client = newHttpClient()
 
@@ -6,6 +6,9 @@ type
     Package = object
         Name: string
         Description: string
+        Version: string
+        URL: string
+        Maintainer: string
 
 type
     Results = object
@@ -17,8 +20,10 @@ proc searchPkg*(query: string): void =
     var packages = to(parseJson(res), Results)
     for pkg in packages.results:
         if i < 5:
-            echo pkg.Name
+            echo &"{pkg.Name} ({pkg.Version})"
             echo pkg.Description
+            echo &"Maintained by: {pkg.Maintainer}"
+            echo pkg.URL
             echo "\n"
             inc i
         else:
