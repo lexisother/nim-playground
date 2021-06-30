@@ -1,4 +1,4 @@
-import httpclient, json
+import httpclient, json, strutils
 
 var client = newHttpClient()
 
@@ -11,7 +11,9 @@ proc searchPkg*(query: string): void =
     var jsonnode = parseJson(res)
     for node in jsonnode["results"]:
         if i < 5:
-            echo node["Name"]
+            echo replace($node["Name"], "\"", "")
+            echo "  ", replace($node["Description"], "\"", "")
+            echo "\n"
             inc i
         else:
             return
